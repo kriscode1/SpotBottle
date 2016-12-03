@@ -3,6 +3,9 @@ Command line resource monitor. Displays CPU, network, disk, RAM, and process bot
 
 The purpose of this program is to get an idea of where a system performance bottleneck is coming from, whether that be hard drive related, bandwidth related, or something else. The program attempts to give the name of the process which is most likely to be causing a bottleneck. 
 
+TODO_IMAGE
+
+I have this running all of the time in the corner of my screen so I can always see network and disk activity. I propose shrinking the command prompt text size from 8x12 to 6x8 if you do the same, in the Font tab of the Properties window. 
 
 Each line of stats is updated with stats per second. Displays in this order:
 
