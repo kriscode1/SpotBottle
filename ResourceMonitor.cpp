@@ -79,7 +79,7 @@ int main()
 			continue;
 		}
 		//Use cpu_pct.doubleValue
-
+		
 		////////// Disk %s //////////
 		PDH_FMT_COUNTERVALUE_ITEM* disk_pcts = 0;
 		DWORD counter_count = GetCounterArray(disk_pct_counters, PDH_FMT_DOUBLE, &disk_pcts);
@@ -99,14 +99,14 @@ int main()
 		}
 		delete[] disk_pcts;
 		//Use highest_disk_usage
-
+		
 		////////// Network I/O bytes //////////
 		unsigned long long sent_bytes = SumCounterArray(bytes_sent_counters);
 		unsigned long long recv_bytes = SumCounterArray(bytes_recv_counters);
 		
 		////////// RAM % //////////
 		double ram_pct = GetPercentUsedRAM();
-
+		
 		////////// Determine which bottleneck to care about //////////
 		//  If an error occurs with process counter data, 
 		//	skip outputting the bottleneck process
@@ -159,7 +159,7 @@ int main()
 				else {
 					//Both write and read bytes were obtained,
 					//	so continue with determining a bottleneck process
-					if (highest_disk_usage >= 90.0) {
+					if (highest_disk_usage >= 50.0) {
 						//Find process with highest total IO
 						long long highest_total_io = 0;
 						DWORD index_of_highest = 0;
