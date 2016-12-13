@@ -34,7 +34,7 @@ int main()
 	PDH_STATUS pdh_status = PdhOpenQuery(NULL, 0, &query_handle);
 	if (pdh_status != ERROR_SUCCESS) {
 		cout << "PdhOpenQuery() error." << endl;
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	//Add counters
@@ -56,7 +56,7 @@ int main()
 	//Collect first sample
 	if (!CollectQueryData(query_handle)) {
 		cout << "First sample collection failed." << endl;
-		return 0;
+		return EXIT_FAILURE;
 	}
 
 	int sleep_time = 1000;
@@ -79,7 +79,7 @@ int main()
 			continue;
 		}
 		//Use cpu_pct.doubleValue
-		
+
 		////////// Disk %s //////////
 		PDH_FMT_COUNTERVALUE_ITEM* disk_pcts = 0;
 		DWORD counter_count = GetCounterArray(disk_pct_counters, PDH_FMT_DOUBLE, &disk_pcts);
@@ -99,14 +99,14 @@ int main()
 		}
 		delete[] disk_pcts;
 		//Use highest_disk_usage
-		
+
 		////////// Network I/O bytes //////////
 		unsigned long long sent_bytes = SumCounterArray(bytes_sent_counters);
 		unsigned long long recv_bytes = SumCounterArray(bytes_recv_counters);
 		
 		////////// RAM % //////////
 		double ram_pct = GetPercentUsedRAM();
-		
+
 		////////// Determine which bottleneck to care about //////////
 		//  If an error occurs with process counter data, 
 		//	skip outputting the bottleneck process
@@ -228,5 +228,5 @@ int main()
 			ram_pct);
 	}
 
-    return 0;
+    return EXIT_SUCCESS;
 }
