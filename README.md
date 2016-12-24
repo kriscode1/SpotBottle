@@ -24,6 +24,6 @@ Notes:
 * The process name is determined as such:
 
 1. If CPU usage is over 90%, display the process with the highest individual CPU usage.
-2. If physical disk usage is over 50%, display the process with the highest individual total I/O bytes. The total I/O bytes includes both disk and network I/O for that process because that's what Microsoft's performance counter library offers. It works well enough.
+2. If physical disk usage is over 10%, display the process with the highest individual total I/O bytes. The total I/O bytes includes both disk and network I/O for that process because that's what Microsoft's performance counter library offers. It works well enough.
 3. If network bytes downloaded > network bytes uploaded, display the process with the highest individual I/O read bytes. 
 4. If network bytes uploaded < network bytes downloaded, display the process with the highest individual I/O write bytes. 
