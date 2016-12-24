@@ -159,7 +159,7 @@ int main()
 				else {
 					//Both write and read bytes were obtained,
 					//	so continue with determining a bottleneck process
-					if (highest_disk_usage >= 50.0) {
+					if (highest_disk_usage >= 10.0) {
 						//Find process with highest total IO
 						long long highest_total_io = 0;
 						DWORD index_of_highest = 0;
