@@ -1,0 +1,12 @@
+*.db
+*.opendb
+.vs
+Debug
+*.iobj
+*.ipdb
+*.user
+*.filters
+*.log
+*.obj
+*.tlog
+*.pdb
