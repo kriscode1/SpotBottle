@@ -218,7 +218,7 @@ int main()
 		}
 
 		////////// Format Output //////////
-		if (bottleneck_name.length() == 0) {
+		if ((bottleneck_name.length() == 0) || (bottleneck_name.compare(L"_Total") == 0)) {
 			bottleneck_name.assign(L"\t");
 		}
 		wprintf(L"%5.2f  %u\t%u\t%5.2f  %s\t%5.2f\n", 
