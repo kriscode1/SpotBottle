@@ -12,7 +12,7 @@ PDH_HCOUNTER AddSingleCounter(PDH_HQUERY query_handle, LPCWSTR query_str) {
 	PDH_HCOUNTER counter_handle;
 	PDH_STATUS pdh_status = PdhAddCounter(query_handle, query_str, 0, &counter_handle);
 	if (pdh_status != ERROR_SUCCESS) {
-		cout << "AddSingleCounter() PdhAddCounter() error." << endl;
+		wcout << "AddSingleCounter() PdhAddCounter() error." << endl;
 		return 0;
 	}
 	return counter_handle;
@@ -24,8 +24,8 @@ bool CollectQueryData(PDH_HQUERY query_handle) {
 	PDH_STATUS pdh_status = PdhCollectQueryData(query_handle);
 	if (pdh_status != ERROR_SUCCESS) {
 		cout << "CollectQueryData() PdhCollectQueryData() error." << endl;
-		if (pdh_status == PDH_INVALID_HANDLE) cout << "The query handle is not valid." << endl;
-		else if (pdh_status == PDH_NO_DATA) cout << "The query does not currently contain any counters." << endl;
+		if (pdh_status == PDH_INVALID_HANDLE) wcout << "The query handle is not valid." << endl;
+		else if (pdh_status == PDH_NO_DATA) wcout << "The query does not currently contain any counters." << endl;
 		return false;
 	}
 	return true;
@@ -39,13 +39,13 @@ DWORD GetCounterArray(PDH_HCOUNTER counters, DWORD format, PDH_FMT_COUNTERVALUE_
 	DWORD counter_count = 0;
 	PDH_STATUS pdh_status = PdhGetFormattedCounterArray(counters, format, &buffer_size, &counter_count, 0);
 	if (pdh_status != PDH_MORE_DATA) {
-		//cout << "GetCounterArray() expected PDH_MORE_DATA." << endl;
+		wcout << "GetCounterArray() expected PDH_MORE_DATA." << endl;
 		return 0;
 	}
 	*values_out = (PDH_FMT_COUNTERVALUE_ITEM*) new char[buffer_size];
 	pdh_status = PdhGetFormattedCounterArray(counters, format, &buffer_size, &counter_count, *values_out);
 	if (pdh_status != ERROR_SUCCESS) {
-		//cout << "GetCounterArray() error." << endl;
+		//wcout << "GetCounterArray() error code " << std::hex << (unsigned int)pdh_status << endl;
 		delete[] * values_out;
 		return 0;
 	}
@@ -58,7 +58,7 @@ unsigned long long SumCounterArray(PDH_HCOUNTER counters) {
 	PDH_FMT_COUNTERVALUE_ITEM* values = 0;
 	DWORD values_count = GetCounterArray(counters, PDH_FMT_LARGE, &values);
 	if (values_count == 0) {
-		cout << "SumCounterArray() error." << endl;
+		wcout << "SumCounterArray() error." << endl;
 		return 0;
 	}
 
