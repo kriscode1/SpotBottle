@@ -16,15 +16,14 @@
 
 using namespace std;
 
-const wchar_t USAGE_TEXT[] =
-L"RESOURCEMONITOR [/T seconds] [/L logfile]\n"
-L"  \n"
-L"  /T\tIndicates the time delay between data collection is given, in seconds.\n"
-L"    \tDefaults to 1 second. May be a decimal.\n"
-L"  /L\tIndicates an output logfile name is given.\n"
-L"    \tWarning: No write buffer is used. Use a large [/T seconds].\n"
-//L"  /H\tDisplays this help message.\n"
-L"  ";
+const wchar_t USAGE_TEXT[] = L"\
+RESOURCEMONITOR [/T seconds] [/L logfile]\
+\
+  /T\tIndicates the time delay between data collection is given, in seconds.\
+    \tDefaults to 1 second. May be a decimal.\
+  /L\tIndicates an output logfile name is given.\
+    \tWarning: No write buffer is used. Use a large [/T seconds].\
+  ";
 
 double GetPercentUsedRAM() {
 	//Gets the system physical ram usage percent, returned as a double.
@@ -125,7 +124,7 @@ int wmain(int argc, wchar_t* argv[])
 	PDH_HQUERY query_handle;
 	PDH_STATUS pdh_status = PdhOpenQuery(NULL, 0, &query_handle);
 	if (pdh_status != ERROR_SUCCESS) {
-		cout << "PdhOpenQuery() error." << endl;
+		wcout << "PdhOpenQuery() error." << endl;
 		return EXIT_FAILURE;
 	}
 
@@ -258,7 +257,6 @@ int wmain(int argc, wchar_t* argv[])
 						long long highest_total_io = 0;
 						DWORD index_of_highest = 0;
 						for (DWORD procN = 1; procN < process_count; ++procN) {
-							wcout << process_read_bytes[procN].szName << endl;
 							long long total_io = process_write_bytes[procN].FmtValue.largeValue + process_read_bytes[procN].FmtValue.largeValue;
 							if (total_io > highest_total_io) {
 								highest_total_io = total_io;
