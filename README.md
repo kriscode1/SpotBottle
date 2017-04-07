@@ -1,6 +1,8 @@
 # ResourceMonitor
 Command line resource monitor. Displays CPU, network, disk, RAM, and process bottleneck information.
 
+## Warning: This readme is out of date. Will update soon.
+
 The purpose of this program is to get an idea of where a system performance bottleneck is coming from, whether that be hard drive related, bandwidth related, or something else. The program attempts to give the name of the process which is most likely to be causing a bottleneck. 
 
 ![No graphs to read, only numbers.](sample_output.png)
