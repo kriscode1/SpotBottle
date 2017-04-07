@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <queue>
 #include <ctime>
 #include <Pdh.h>//Link pdh.lib
 #include <PdhMsg.h>
@@ -16,12 +17,13 @@
 using namespace std;
 
 const wchar_t USAGE_TEXT[] = L"\
-RESOURCEMONITOR [/T seconds] [/L logfile]\
+RESOURCEMONITOR [/T seconds] [/L logfile] /NSF\
 \
   /T\tIndicates the time delay between data collection is given, in seconds.\
     \tDefaults to 1 second. May be a decimal.\
   /L\tIndicates an output logfile name is given.\
     \tWarning: No write buffer is used. Use a large [/T seconds].\
+  /TSV\tTab Separated Values. Disables smart formatting for tabs instead.\
   ";//TODO detailed note about admin rights
 
 double GetPercentUsedRAM() {
@@ -38,11 +40,33 @@ double GetPercentUsedRAM() {
 
 enum bottleneck_causes {none, cpu, wio, rio, tio};
 
+size_t GetLargestValueInQueue(queue <size_t> size_queue) {
+	queue <size_t> temp;
+	size_t max_value = 0;
+
+	//Store values in temp while finding the largest
+	while (size_queue.size() > 0) {
+		size_t check_value = size_queue.front();
+		size_queue.pop();
+		temp.push(check_value);
+		if (check_value > max_value) max_value = check_value;
+	}
+
+	//Loop again to restore the loop
+	while (temp.size() > 0) {
+		size_queue.push(temp.front());
+		temp.pop();
+	}
+	
+	return max_value;
+}
+
 int wmain(int argc, wchar_t* argv[])
 {
 	//Argument vars to be assigned during argument parsing
 	wchar_t* logging_filename = 0;
 	int master_sleep_time = 1000;
+	bool smart_formatting = true;
 
 	//Argument parsing
 	for (int argn = 1; argn < argc; ++argn) {
@@ -72,7 +96,7 @@ int wmain(int argc, wchar_t* argv[])
 				return EXIT_FAILURE;
 			}
 		}
-		else if (wcscmp(argv[argn], L"/L") == 0) {
+		else if (StringsMatch(argv[argn], L"/L")) {
 			//Logging, read filename next
 			++argn;
 			if (argn < argc) logging_filename = argv[argn];
@@ -81,6 +105,10 @@ int wmain(int argc, wchar_t* argv[])
 				wcout << USAGE_TEXT << endl;
 				return EXIT_FAILURE;
 			}
+		}
+		else if (StringsMatch(argv[argn], L"/TSV")) {
+			//No Smart Formatting
+			smart_formatting = false;
 		}
 		else {
 			//Display usage text
@@ -113,10 +141,12 @@ int wmain(int argc, wchar_t* argv[])
 
 	//Welcome message
 	wcout << L"Resource Monitor, Kristofer Christakos, March 2017" << endl;
-	wcout << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
+	if (smart_formatting) wcout << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
+	else				  wcout << L"Disk%\tDownload\tUpload\tCPU%\tProcess\tRAM%" << endl;
 	if (logging_filename != 0) {
 		logfile << L"Resource Monitor, Kristofer Christakos, March 2017" << endl;
-		logfile << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
+		if (smart_formatting) logfile << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
+		else logfile << L"Disk%\tDownload\tUpload\tCPU%\tProcess\tRAM%" << endl;
 	}
 
 	//Open query
@@ -154,6 +184,10 @@ int wmain(int argc, wchar_t* argv[])
 	ProcessRaw* process_raw_new = 0;
 	DWORD process_raw_old_length = 0;
 	DWORD process_raw_new_length = 0;
+
+	//Formatting queues
+	const unsigned int MAX_QUEUE_SIZE = 10;
+	queue <size_t> bottleneck_length_queue;
 
 	int sleep_time = 1000;
 	while (true) {
@@ -214,8 +248,7 @@ int wmain(int argc, wchar_t* argv[])
 			else {
 				process_raw_new = new ProcessRaw[process_raw_new_length];
 				for (DWORD n = 0; n < process_raw_new_length; ++n) {
-					process_raw_new[n].PID = ParsePIDFromRawCounterName(process_cpu_pcts[n].szName);
-					process_raw_new[n].name = ParseNameFromRawCounterName(process_cpu_pcts[n].szName);
+					process_raw_new[n].ParseRawCounterName(process_cpu_pcts[n].szName);
 					memcpy(&process_raw_new[n].raw_cpu, &process_cpu_pcts[n].RawValue, sizeof(PDH_RAW_COUNTER));
 				}
 			}
@@ -267,7 +300,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 
 		////////// Determine which bottleneck to care about //////////
-		wstring bottleneck_name = L"";
+		ProcessRaw bottleneck;
 		bottleneck_causes bottleneck_cause = none;
 		bool need_process_cpu = false;
 		bool need_process_rio = false;
@@ -381,7 +414,7 @@ int wmain(int argc, wchar_t* argv[])
 			if (bottleneck_cause == cpu) {
 				index_of_highest = FindIndexOfProcessWithHighestDouble(process_cpu_pcts, process_count);
 				if (index_of_highest != -1) {
-					bottleneck_name.assign(process_cpu_pcts[index_of_highest].szName);
+					bottleneck.name.assign(process_cpu_pcts[index_of_highest].szName);
 				}
 				/*else {
 					//There was an error and all values were probably set to 0
@@ -392,21 +425,21 @@ int wmain(int argc, wchar_t* argv[])
 				//Find process with highest total IO
 				index_of_highest = FindIndexOfProcessWithHighestLongLong(process_total_bytes, process_count);
 				if (index_of_highest != -1) {
-					bottleneck_name.assign(process_total_bytes[index_of_highest].szName);
+					bottleneck.name.assign(process_total_bytes[index_of_highest].szName);
 				}
 			}
 			else if (bottleneck_cause == rio) {
 				//Find process with highest read IO
 				index_of_highest = FindIndexOfProcessWithHighestLongLong(process_read_bytes, process_count);
 				if (index_of_highest != -1) {
-					bottleneck_name.assign(process_read_bytes[index_of_highest].szName);
+					bottleneck.name.assign(process_read_bytes[index_of_highest].szName);
 				}
 			}
 			else if (bottleneck_cause == wio) {
 				//Find process with highest write IO
 				index_of_highest = FindIndexOfProcessWithHighestLongLong(process_write_bytes, process_count);
 				if (index_of_highest != -1) {
-					bottleneck_name.assign(process_write_bytes[index_of_highest].szName);
+					bottleneck.name.assign(process_write_bytes[index_of_highest].szName);
 				}
 			}
 		}
@@ -453,9 +486,7 @@ int wmain(int argc, wchar_t* argv[])
 
 			//Add the process name as the bottleneck
 			if (index_of_highest != -1) {
-				bottleneck_name.assign(process_raw_new[index_of_highest].name);
-				bottleneck_name.append(L"_");
-				bottleneck_name.append(to_wstring(process_raw_new[index_of_highest].PID));
+				bottleneck.Copy(&process_raw_new[index_of_highest]);
 			}
 		}
 
@@ -474,31 +505,136 @@ int wmain(int argc, wchar_t* argv[])
 
 		////////// Format Output //////////
 		wstring bottleneck_cause_text = L"";
-		if ((bottleneck_name.length() == 0)/* || (bottleneck_name.compare(L"_Total") == 0)*/) {
-			//bottleneck_cause.assign(L"");
-			bottleneck_name = L"\t\t";
+		if (bottleneck.name.length() != 0) {
+			const size_t number_text_length = 128;
+			wchar_t number_text[number_text_length];
+			if (bottleneck_cause == cpu) {
+				bottleneck_cause_text = L"CPU:";
+				swprintf(number_text, number_text_length, L"%2.0f%%", bottleneck.cpu);
+				bottleneck_cause_text.append(number_text);
+			}
+			else if (bottleneck_cause == tio) {
+				bottleneck_cause_text = L"TIO:";
+				//swprintf(number_text, number_text_length, L"%u%", bottleneck.tio);
+				//bottleneck_cause_text.append(number_text);
+			}
+			else if (bottleneck_cause == wio) {
+				bottleneck_cause_text = L"WIO:";
+				//swprintf(number_text, number_text_length, L"%u%", bottleneck.wio);
+				//bottleneck_cause_text.append(number_text);
+			}
+			else if (bottleneck_cause == rio) {
+				bottleneck_cause_text = L"RIO:";
+				//swprintf(number_text, number_text_length, L"%u%", bottleneck.rio);
+				//bottleneck_cause_text.append(number_text);
+			}
+		}
+		const size_t text_buffer_size = 1024;
+		wchar_t text_buffer[text_buffer_size];
+		if (smart_formatting) {
+			//Assume 80 char width, try to format within 80 chars
+			
+			//Temp variables
+			const size_t str_size = 32;
+			wchar_t disk_str[str_size];
+			wchar_t DL_str[str_size];
+			wchar_t UL_str[str_size];
+			wchar_t CPU_str[str_size];
+			wchar_t RAM_str[str_size];
+
+			//Format the pieces
+			swprintf(disk_str, str_size, L"%5.2f", highest_disk_usage);
+			swprintf(DL_str, str_size, L"%u", (unsigned int)recv_bytes);
+			swprintf(UL_str, str_size, L"%u", (unsigned int)sent_bytes);
+			swprintf(CPU_str, str_size, L"%5.2f", cpu_pct.doubleValue);
+			swprintf(RAM_str, str_size, L"%5.2f", ram_pct);
+
+			//Assume lengths after the pieces
+			size_t after_disk = 2;
+			if (wcslen(disk_str) == 6) after_disk = 1;
+			
+			size_t after_DL;
+			if (wcslen(DL_str) < 8) after_DL = 8 - wcslen(DL_str);
+			else after_DL = 1;
+
+			size_t after_UL;
+			if (wcslen(DL_str) < 8) after_UL = 8 - wcslen(UL_str);
+			else after_UL = 1;
+
+			size_t after_CPU = 2;
+			if (wcslen(CPU_str) == 6) after_CPU = 1;
+
+			size_t after_cause = 1;
+			if (bottleneck_cause_text.length() == 0) after_cause += 4;
+
+			wstring bottleneck_name_text = bottleneck.name;
+			if (bottleneck.PID != 0) {
+				bottleneck_name_text.append(L"_");
+				bottleneck_name_text.append(to_wstring(bottleneck.PID));
+			}
+			if (bottleneck_length_queue.size() > MAX_QUEUE_SIZE) bottleneck_length_queue.pop();
+			bottleneck_length_queue.push(bottleneck_name_text.length());
+			size_t after_name = GetLargestValueInQueue(bottleneck_length_queue) - bottleneck_name_text.length() + 2;
+
+			size_t text_chars_needed = 
+				wcslen(disk_str) +
+				wcslen(DL_str) +
+				wcslen(UL_str) +
+				wcslen(CPU_str) +
+				bottleneck_cause_text.length() +
+				bottleneck_name_text.length() +
+				wcslen(RAM_str);
+			size_t desired_space = text_chars_needed + after_disk + after_DL + after_UL + after_CPU + after_cause + after_name;
+			if (desired_space > 79) {
+				//Output won't fit in command prompt after the return character.
+				//Adjust the process name to compensate.
+				size_t space_needed = desired_space - 79;
+				space_needed += 3;//For adding a "..." to show the name was too long
+
+				//Recalculate bottleneck_name_text
+				bottleneck_name_text = bottleneck.name.substr(0, bottleneck.name.length() - space_needed);
+				bottleneck_name_text.append(L"..._");
+				bottleneck_name_text.append(to_wstring(bottleneck.PID));
+
+				//Clear the formatting queue
+				while (bottleneck_length_queue.size() > 0) bottleneck_length_queue.pop();
+				bottleneck_length_queue.push(bottleneck_name_text.length());
+				after_name = 2;
+			}
+
+			//Create the final output string string
+			swprintf(text_buffer, text_buffer_size, L"%s%*s%s%*s%s%*s%s%*s%s%*s%s%*s%s\n",
+				disk_str, (int)after_disk, L"", 
+				DL_str, (int)after_DL, L"",
+				UL_str, (int)after_UL, L"",
+				CPU_str, (int)after_CPU, L"",
+				bottleneck_cause_text.c_str(), (int)after_cause, L"",
+				bottleneck_name_text.c_str(), (int)after_name, L"",
+				RAM_str);
 		}
 		else {
-			if (bottleneck_cause == cpu) bottleneck_cause_text = L"CPU:";
-			else if (bottleneck_cause == tio) bottleneck_cause_text = L"TIO:";
-			else if (bottleneck_cause == wio) bottleneck_cause_text = L"WIO:";
-			else if (bottleneck_cause == rio) bottleneck_cause_text = L"RIO:";
+			//No smart formatting, simple tabular output
+			wstring bottleneck_name_text = bottleneck.name;
+			if (bottleneck.PID != 0) {
+				bottleneck_name_text.append(L"_");
+				bottleneck_name_text.append(to_wstring(bottleneck.PID));
+			}
+			swprintf(text_buffer, text_buffer_size, L"%4.2f\t%u\t%u\t%4.2f\t%s\t%s\t%4.2f\n",
+				highest_disk_usage,
+				(unsigned int)recv_bytes,
+				(unsigned int)sent_bytes,
+				cpu_pct.doubleValue,
+				bottleneck_cause_text.c_str(),
+				bottleneck_name_text.c_str(),
+				ram_pct);
+			//Old line: swprintf(text_buffer, text_buffer_size, L"%5.2f  %u\t%u\t%5.2f  %s %s\t%5.2f\n",
 		}
-		wchar_t text_buffer[1024];
-		swprintf(text_buffer, 1024, L"%5.2f  %u\t%u\t%5.2f  %s%s\t%5.2f\n",
-			highest_disk_usage, 
-			(unsigned int) recv_bytes, 
-			(unsigned int) sent_bytes, 
-			cpu_pct.doubleValue, 
-			bottleneck_cause_text.c_str(),
-			bottleneck_name.c_str(), 
-			ram_pct);
 		wcout << text_buffer;
 		if (logging_filename != 0) {
 			//First write the time
 			time_t rawtime = time(0);
-			//struct tm realtime;
-			//_localtime32_s(&rawtime, &realtime);
+				//struct tm realtime;
+				//_localtime32_s(&rawtime, &realtime);
 			wchar_t time_buffer[256];
 			wcsftime(time_buffer, 256, L"%F %T\t", localtime(&rawtime));
 			logfile << time_buffer;

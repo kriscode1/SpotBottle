@@ -25,11 +25,13 @@ struct ProcessRaw {
 	long long rio;
 	long long tio;//Total rio + wio
 	ProcessRaw();//Constructor
+	void Copy(ProcessRaw* source);
+	void ParseRawCounterName(wchar_t* szName);
 };
 
-int FindPIDInProcessRawArray(ProcessRaw* process_raw_array, int array_length, int PID);
 DWORD ParsePIDFromRawCounterName(wchar_t* szName);
 wstring ParseNameFromRawCounterName(wchar_t* szName);
+int FindPIDInProcessRawArray(ProcessRaw* process_raw_array, int array_length, int PID);
 
 bool RegistryIsSetForPIDs();
 bool SetRegistryForPIDs();

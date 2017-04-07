@@ -141,10 +141,41 @@ int FindPIDInProcessRawArray(ProcessRaw* process_raw_array, int array_length, in
 ProcessRaw::ProcessRaw() {
 	//Constructor
 	PID = 0;
+	name.assign(L"");
 	cpu = 0;
 	wio = 0;
 	rio = 0;
 	tio = 0;
+}
+
+void ProcessRaw::Copy(ProcessRaw* source) {
+	//Safely copy the data from another ProcessRaw object.
+	PID = source->PID;
+	name.assign(source->name);
+	memcpy(&raw_cpu, &source->raw_cpu, sizeof(PDH_RAW_COUNTER));
+	memcpy(&raw_wio, &source->raw_wio, sizeof(PDH_RAW_COUNTER));
+	memcpy(&raw_rio, &source->raw_rio, sizeof(PDH_RAW_COUNTER));
+	cpu = source->cpu;
+	wio = source->wio;
+	rio = source->rio;
+	tio = source->tio;
+}
+
+void ProcessRaw::ParseRawCounterName(wchar_t* szName) {
+	//Calculates the ProcessRaw object's PID and name from a raw counter name.
+	//Expecting names like: processname_0000, where the numbers after the underscore is the PID
+	wstring name = szName;//wstring version for the functions
+	size_t underscore_pos = name.rfind('_');
+	if (StringsMatch(szName, L"_Total") ||
+		StringsMatch(szName, L"Idle") ||
+		(underscore_pos == std::string::npos)) {
+		this->name.assign(szName);
+		this->PID = 0;
+		return;
+	}
+	this->name = name.substr(0, underscore_pos);
+	wstring PID = name.substr(underscore_pos + 1, name.length() - underscore_pos);
+	this->PID = stoi(PID);
 }
 
 DWORD ParsePIDFromRawCounterName(wchar_t* szName) {
