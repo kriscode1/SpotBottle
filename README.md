@@ -1,31 +1,73 @@
 # ResourceMonitor
-Command line resource monitor. Displays CPU, network, disk, RAM, and process bottleneck information.
-
-## Warning: This readme is out of date. Will update soon.
+Command line resource monitor. Displays disk, network, CPU, RAM, and process bottleneck information.
 
 The purpose of this program is to get an idea of where a system performance bottleneck is coming from, whether that be hard drive related, bandwidth related, or something else. The program attempts to give the name of the process which is most likely to be causing a bottleneck. 
 
 ![No graphs to read, only numbers.](sample_output.png)
 
-I have this running all of the time in the corner of my screen so I can always see network and disk activity. I propose shrinking the command prompt text size from 8x12 to 6x8 if you do the same, in the Font tab of the Properties window. 
+I have this running all of the time in the corner of my screen so I can always see network and disk activity. I propose shrinking the command prompt text size from 8x12 to 6x8, in the Font tab of the Properties window. 
 
-Each line of stats is updated with stats per second. Displays in this order:
+### Usage
 
-* % Disk Read/Write Time
-* Bytes Downloaded
-* Bytes Uploaded
-* % Processor Usage Time
-* Process Name
-* % Physical RAM Used
+RESOURCEMONITOR [/T seconds] [/L logfile] /TSV /H
 
-Notes:
+ /T	Indicates the time delay between data collection is given, in seconds.
+    	Defaults to 1 second. May be a decimal.
 
-* % Disk Read/Write Time is given for the physical disk most in use. The program calculates this percent for all physical disks and then displays the highest value to give the user a sense of where a potential system performance bottleneck is coming from. Because hard drives are often the cause of a computer feeling slow, this number is displayed first. 
-* Bytes Downloaded/Uploaded are sums of bytes across all network interfaces.
-* % Processor Usage Time is the average across all processors.
-* The process name is determined as such:
+ /L	Indicates an output logfile name is given.
+    	Warning: No write buffer is used. Use a large [/T seconds].
 
-1. If CPU usage is over 90%, display the process with the highest individual CPU usage.
-2. If physical disk usage is over 10%, display the process with the highest individual total I/O bytes. The total I/O bytes includes both disk and network I/O for that process because that's what Microsoft's performance counter library offers. It works well enough.
-3. If network bytes downloaded > network bytes uploaded, display the process with the highest individual I/O read bytes. 
-4. If network bytes uploaded < network bytes downloaded, display the process with the highest individual I/O write bytes. 
+ /TSV	Tab Separated Values. Disables smart formatting for tabs instead.
+
+ /H	Displays this usage/help text.
+
+
+#### Data Collected:
+
+ Disk% -- Percent Disk Read/Write Time for the physical disk most in use.
+      	Internally calculated for all physical disks and then the highest is
+      	displayed to catch a disk-related bottleneck.
+      	Hard disk drives are often the cause of a slow computer.
+
+ Download -- Bytes downloaded, summed across all network interfaces.
+
+ Upload -- Bytes uploaded, summed across all network interfaces.
+
+ CPU% -- Percent Processor Usage Time, averaged across all processor cores.
+
+ RAM% -- Percent Physical RAM used.
+
+
+#### Bottleneck Cause Key:
+
+ CPU:	Indicates CPU bottleneck.
+     	Displays the estimated percent CPU time the process used.
+
+ RIO:	Indicates Read-bytes I/O bottleneck.
+     	Used as an estimation to determine per-process download bytes.
+
+ WIO:	Indicates Write-bytes I/O bottleneck.
+     	Used as an estimation to determine per-process upload bytes.
+
+ TIO:	Indicates Total-bytes I/O bottleneck.
+     	Used as an estimation to determine per-process percent disk usage.
+
+
+#### Data Collection Note:
+
+This program uses the Windows Performance Counters API, which by 
+default does not track process IDs (PIDs) along with process names. 
+This will cause gaps in the displayed data when a new process is 
+created or destroyed, because process names are not unique. To enable 
+tracking of PIDs, run this program once as an administrator and the 
+setting will be enabled if not already set. Further calls to this 
+program will not require administrator rights.
+
+
+#### Example Usage:
+
+RESOURCEMONITOR
+
+RESOURCEMONITOR /T 3
+
+RESOURCEMONITOR /T 10 /L C:\logfile.txt /TSV

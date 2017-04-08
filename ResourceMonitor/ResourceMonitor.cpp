@@ -3,28 +3,62 @@
 // Command line resource monitor. 
 // Displays CPU, network, disk, RAM, and process bottleneck information.
 
+#include <windows.h>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <queue>
 #include <ctime>
 #include <Pdh.h>//Link pdh.lib
+#pragma comment(lib, "pdh.lib")
 #include <PdhMsg.h>
-#include <Windows.h>
+
 #include "PdhHelperFunctions.h"
 #include "StringHelpers.h"
 
 using namespace std;
 
-const wchar_t USAGE_TEXT[] = L"\
-RESOURCEMONITOR [/T seconds] [/L logfile] /NSF\
-\
-  /T\tIndicates the time delay between data collection is given, in seconds.\
-    \tDefaults to 1 second. May be a decimal.\
-  /L\tIndicates an output logfile name is given.\
-    \tWarning: No write buffer is used. Use a large [/T seconds].\
-  /TSV\tTab Separated Values. Disables smart formatting for tabs instead.\
-  ";//TODO detailed note about admin rights
+const wchar_t USAGE_TEXT[] =
+L"RESOURCEMONITOR [/T seconds] [/L logfile] /TSV /H\n\n"
+" /T\tIndicates the time delay between data collection is given, in seconds.\n"
+"    \tDefaults to 1 second. May be a decimal.\n\n"
+" /L\tIndicates an output logfile name is given.\n"
+"    \tWarning: No write buffer is used. Use a large [/T seconds].\n\n"
+" /TSV\tTab Separated Values. Disables smart formatting for tabs instead.\n\n"
+" /H\tDisplays this usage/help text.\n\n\n"
+"Data Collected:\n\n"
+" Disk%\tPercent Disk Read/Write Time for the physical disk most in use.\n"
+"      \tInternally calculated for all physical disks and then the highest is\n"
+"      \tdisplayed to catch a disk-related bottleneck.\n"
+"      \tHard disk drives are often the cause of a slow computer.\n\n"
+" Download Bytes downloaded, summed across all network interfaces.\n\n"
+" Upload\tBytes uploaded, summed across all network interfaces.\n\n"
+" CPU%\tPercent Processor Usage Time, averaged across all processor cores.\n\n"
+" RAM%\tPercent Physical RAM used.\n\n\n"
+"Bottleneck Cause Key:\n\n"
+" CPU:\tIndicates CPU bottleneck.\n"
+"     \tDisplays the estimated percent CPU time the process used.\n\n"
+" RIO:\tIndicates Read-bytes I/O bottleneck.\n"
+"     \tUsed as an estimation to determine per-process download bytes.\n\n"
+" WIO:\tIndicates Write-bytes I/O bottleneck.\n"
+"     \tUsed as an estimation to determine per-process upload bytes.\n\n"
+" TIO:\tIndicates Total-bytes I/O bottleneck.\n"
+"     \tUsed as an estimation to determine per-process percent disk usage.\n\n\n"
+"Data Collection Note:\n\n"
+"\tThis program uses the Windows Performance Counters API, which by \n"
+"\tdefault does not track process IDs (PIDs) along with process names. \n"
+"\tThis will cause gaps in the displayed data when a new process is \n"
+"\tcreated or destroyed, because process names are not unique. To enable \n"
+"\ttracking of PIDs, run this program once as an administrator and the \n"
+"\tsetting will be enabled if not already set. Further calls to this \n"
+"\tprogram will not require administrator rights.\n\n\n"
+"Example Usage:\n\n"
+"RESOURCEMONITOR\n"
+"RESOURCEMONITOR /T 3\n"
+"RESOURCEMONITOR /T 10 /L C:\\logfile.txt /TSV\n"
+;
+
+const wchar_t WELCOME_HEADER[] = L"Resource Monitor, Kristofer Christakos, April 2017";
 
 double GetPercentUsedRAM() {
 	//Gets the system physical ram usage percent, returned as a double.
@@ -38,23 +72,29 @@ double GetPercentUsedRAM() {
 	return bytes_in_use / ((double)data.ullTotalPhys) * 100;
 }
 
+DWORD GetProcessorCount() {
+	SYSTEM_INFO sys_info;
+	GetSystemInfo(&sys_info);
+	return sys_info.dwNumberOfProcessors;
+}
+
 enum bottleneck_causes {none, cpu, wio, rio, tio};
 
-size_t GetLargestValueInQueue(queue <size_t> size_queue) {
+size_t GetLargestValueInQueue(queue <size_t>* size_queue) {
 	queue <size_t> temp;
 	size_t max_value = 0;
 
 	//Store values in temp while finding the largest
-	while (size_queue.size() > 0) {
-		size_t check_value = size_queue.front();
-		size_queue.pop();
+	while (size_queue->size() > 0) {
+		size_t check_value = size_queue->front();
+		size_queue->pop();
 		temp.push(check_value);
 		if (check_value > max_value) max_value = check_value;
 	}
 
 	//Loop again to restore the loop
 	while (temp.size() > 0) {
-		size_queue.push(temp.front());
+		size_queue->push(temp.front());
 		temp.pop();
 	}
 	
@@ -70,10 +110,21 @@ int wmain(int argc, wchar_t* argv[])
 
 	//Argument parsing
 	for (int argn = 1; argn < argc; ++argn) {
+		//Remove double dashes
+		if (wcslen(argv[argn]) > 1) {
+			if ((argv[argn][1] == L'-') && (argv[argn][0] == L'-')) {
+				wstring no_double_dashes = argv[argn];
+				no_double_dashes = no_double_dashes.substr(1, no_double_dashes.length() - 1);
+				no_double_dashes[0] = L'/';
+				wcscpy_s(argv[argn], no_double_dashes.length() + 1, no_double_dashes.c_str());
+			}
+		}
+		//Remove single dashes
 		if (argv[argn][0] == L'-') {
 			argv[argn][0] = L'/';
 		}
 		ConvertCStringToUpper(argv[argn]);
+		//Actual matching
 		if (StringsMatch(argv[argn], L"/T")) {
 			//Time input
 			++argn;
@@ -102,7 +153,7 @@ int wmain(int argc, wchar_t* argv[])
 			if (argn < argc) logging_filename = argv[argn];
 			else {
 				wcout << "Did not specify logging filename." << endl;
-				wcout << USAGE_TEXT << endl;
+				wcout << USAGE_TEXT;
 				return EXIT_FAILURE;
 			}
 		}
@@ -110,10 +161,16 @@ int wmain(int argc, wchar_t* argv[])
 			//No Smart Formatting
 			smart_formatting = false;
 		}
+		else if (StringsMatch(argv[argn], L"/H") ||
+				 StringsMatch(argv[argn], L"/HELP") ||
+			     StringsMatch(argv[argn], L"/?")) {
+			wcout << USAGE_TEXT;
+			return EXIT_SUCCESS;
+		}
 		else {
 			//Display usage text
 			wcout << "Unknown input." << endl << endl;
-			wcout << USAGE_TEXT << endl;
+			wcout << USAGE_TEXT;
 			return EXIT_FAILURE;
 		}
 	}
@@ -125,7 +182,7 @@ int wmain(int argc, wchar_t* argv[])
 		registry_is_set = SetRegistryForPIDs();
 	}
 	if (!registry_is_set) {
-		wcout << "Your system is not configured to monitor processes using their PIDs. You will see missing data. Run once with admin rights to enable more accurate process monitoring." << endl;
+		wcout << "Your system is not configured to monitor processes using their PIDs. You will see missing data. Run once with admin rights to enable more accurate process monitoring. See the usage/help for more details." << endl;
 	}
 
 	//Open logging file if specified
@@ -134,17 +191,20 @@ int wmain(int argc, wchar_t* argv[])
 		logfile.open(logging_filename, ios::out | ios::app);
 		if (!logfile.is_open()) {
 			wcout << "Error opening logfile \"" << logging_filename << "\"" << endl;
-			wcout << USAGE_TEXT << endl;
+			wcout << USAGE_TEXT;
 			return EXIT_FAILURE;
 		}
 	}
 
+	//Get number of processor cores
+	DWORD processor_count = GetProcessorCount();
+
 	//Welcome message
-	wcout << L"Resource Monitor, Kristofer Christakos, March 2017" << endl;
+	wcout << WELCOME_HEADER << endl;
 	if (smart_formatting) wcout << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
 	else				  wcout << L"Disk%\tDownload\tUpload\tCPU%\tProcess\tRAM%" << endl;
 	if (logging_filename != 0) {
-		logfile << L"Resource Monitor, Kristofer Christakos, March 2017" << endl;
+		logfile << WELCOME_HEADER << endl;
 		if (smart_formatting) logfile << L"Disk%  Download\tUpload\tCPU%   Process\t\tRAM%" << endl;
 		else logfile << L"Disk%\tDownload\tUpload\tCPU%\tProcess\tRAM%" << endl;
 	}
@@ -187,7 +247,8 @@ int wmain(int argc, wchar_t* argv[])
 
 	//Formatting queues
 	const unsigned int MAX_QUEUE_SIZE = 10;
-	queue <size_t> bottleneck_length_queue;
+	queue <size_t> bottleneck_name_length_queue;
+	queue <size_t> bottleneck_cause_length_queue;
 
 	int sleep_time = 1000;
 	while (true) {
@@ -326,8 +387,29 @@ int wmain(int argc, wchar_t* argv[])
 				need_process_wio = true;
 			}
 			else {
-				//Nothing is happening
-				bottleneck_cause = none;
+				//Nothing is happening, pick something anyways
+				if (cpu_pct.doubleValue > highest_disk_usage) {
+					bottleneck_cause = cpu;
+					need_process_cpu = true;
+				}
+				else if (highest_disk_usage > 1.00) {
+					bottleneck_cause = tio;
+					need_process_rio = true;
+					need_process_wio = true;
+				}
+				else if (recv_bytes > sent_bytes) {
+					bottleneck_cause = rio;
+					need_process_rio = true;
+				}
+				else if (sent_bytes < recv_bytes) {
+					bottleneck_cause = wio;
+					need_process_wio = true;
+				}
+				else {
+					bottleneck_cause = tio;
+					need_process_rio = true;
+					need_process_wio = true;
+				}
 			}
 		}
 
@@ -484,7 +566,7 @@ int wmain(int argc, wchar_t* argv[])
 				}
 			}
 
-			//Add the process name as the bottleneck
+			//Add the process as the bottleneck
 			if (index_of_highest != -1) {
 				bottleneck.Copy(&process_raw_new[index_of_highest]);
 			}
@@ -510,7 +592,7 @@ int wmain(int argc, wchar_t* argv[])
 			wchar_t number_text[number_text_length];
 			if (bottleneck_cause == cpu) {
 				bottleneck_cause_text = L"CPU:";
-				swprintf(number_text, number_text_length, L"%2.0f%%", bottleneck.cpu);
+				swprintf(number_text, number_text_length, L"%1.0f%%", bottleneck.cpu/processor_count);
 				bottleneck_cause_text.append(number_text);
 			}
 			else if (bottleneck_cause == tio) {
@@ -564,18 +646,18 @@ int wmain(int argc, wchar_t* argv[])
 			size_t after_CPU = 2;
 			if (wcslen(CPU_str) == 6) after_CPU = 1;
 
-			size_t after_cause = 1;
-			if (bottleneck_cause_text.length() == 0) after_cause += 4;
+			if (bottleneck_cause_length_queue.size() > MAX_QUEUE_SIZE) bottleneck_cause_length_queue.pop();
+			bottleneck_cause_length_queue.push(bottleneck_cause_text.length());
+			size_t after_cause = GetLargestValueInQueue(&bottleneck_cause_length_queue) - bottleneck_cause_text.length() + 1;
 
 			wstring bottleneck_name_text = bottleneck.name;
 			if (bottleneck.PID != 0) {
 				bottleneck_name_text.append(L"_");
 				bottleneck_name_text.append(to_wstring(bottleneck.PID));
 			}
-			if (bottleneck_length_queue.size() > MAX_QUEUE_SIZE) bottleneck_length_queue.pop();
-			bottleneck_length_queue.push(bottleneck_name_text.length());
-			size_t after_name = GetLargestValueInQueue(bottleneck_length_queue) - bottleneck_name_text.length() + 2;
-
+			if (bottleneck_name_length_queue.size() > MAX_QUEUE_SIZE) bottleneck_name_length_queue.pop();
+			bottleneck_name_length_queue.push(bottleneck_name_text.length());
+			size_t after_name = GetLargestValueInQueue(&bottleneck_name_length_queue) - bottleneck_name_text.length() + 2;
 			size_t text_chars_needed = 
 				wcslen(disk_str) +
 				wcslen(DL_str) +
@@ -586,6 +668,7 @@ int wmain(int argc, wchar_t* argv[])
 				wcslen(RAM_str);
 			size_t desired_space = text_chars_needed + after_disk + after_DL + after_UL + after_CPU + after_cause + after_name;
 			if (desired_space > 79) {
+				//wcout << "!!!!!!!!!!!desired_space=" << desired_space << endl;
 				//Output won't fit in command prompt after the return character.
 				//Adjust the process name to compensate.
 				size_t space_needed = desired_space - 79;
@@ -597,8 +680,8 @@ int wmain(int argc, wchar_t* argv[])
 				bottleneck_name_text.append(to_wstring(bottleneck.PID));
 
 				//Clear the formatting queue
-				while (bottleneck_length_queue.size() > 0) bottleneck_length_queue.pop();
-				bottleneck_length_queue.push(bottleneck_name_text.length());
+				while (bottleneck_name_length_queue.size() > 0) bottleneck_name_length_queue.pop();
+				bottleneck_name_length_queue.push(bottleneck_name_text.length());
 				after_name = 2;
 			}
 
