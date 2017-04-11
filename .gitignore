@@ -12,3 +12,5 @@ Debug
 *.pdb
 OldScreenshots
 TestSnippets
+*.res
+*.aps

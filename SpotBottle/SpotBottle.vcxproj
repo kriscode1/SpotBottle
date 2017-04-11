@@ -168,7 +168,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PdhHelperFunctions.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="StringHelpers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="SpotBottle.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

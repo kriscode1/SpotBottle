@@ -155,6 +155,7 @@ int wmain(int argc, wchar_t* argv[])
 			if (argn < argc) logging_filename = argv[argn];
 			else {
 				wcout << "Did not specify logging filename." << endl;
+				wcout << WELCOME_HEADER << endl << endl;
 				wcout << USAGE_TEXT;
 				return EXIT_FAILURE;
 			}
@@ -166,12 +167,14 @@ int wmain(int argc, wchar_t* argv[])
 		else if (StringsMatch(argv[argn], L"/H") ||
 				 StringsMatch(argv[argn], L"/HELP") ||
 			     StringsMatch(argv[argn], L"/?")) {
+			wcout << WELCOME_HEADER << endl << endl;
 			wcout << USAGE_TEXT;
 			return EXIT_SUCCESS;
 		}
 		else {
 			//Display usage text
 			wcout << "Unknown input." << endl << endl;
+			wcout << WELCOME_HEADER << endl << endl;
 			wcout << USAGE_TEXT;
 			return EXIT_FAILURE;
 		}
@@ -193,6 +196,7 @@ int wmain(int argc, wchar_t* argv[])
 		logfile.open(logging_filename, ios::out | ios::app);
 		if (!logfile.is_open()) {
 			wcout << "Error opening logfile \"" << logging_filename << "\"" << endl;
+			wcout << WELCOME_HEADER << endl << endl;
 			wcout << USAGE_TEXT;
 			return EXIT_FAILURE;
 		}
