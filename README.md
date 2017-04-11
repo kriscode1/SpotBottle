@@ -1,5 +1,7 @@
-# ResourceMonitor
-Command line resource monitor. Displays disk, network, CPU, RAM, and process bottleneck information.
+# SpotBottle v2.0
+Kristofer Christakos, 2017
+
+Command line resource monitor for spotting bottlenecks. Displays disk, network, CPU, RAM, and process bottleneck information.
 
 The purpose of this program is to get an idea of where a system performance bottleneck is coming from, whether that be hard drive related, bandwidth related, or something else. The program attempts to give the name of the process which is most likely to be causing a bottleneck. 
 
@@ -9,7 +11,7 @@ I have this running all of the time in the corner of my screen so I can always s
 
 ### Usage
 
-RESOURCEMONITOR [/T seconds] [/L logfile] /TSV /H
+SPOTBOTTLE [/T seconds] [/L logfile] /TSV /H
 
  /T	Indicates the time delay between data collection is given, in seconds.
     	Defaults to 1 second. May be a decimal.
@@ -66,8 +68,8 @@ program will not require administrator rights.
 
 #### Example Usage:
 
-RESOURCEMONITOR
+SPOTBOTTLE
 
-RESOURCEMONITOR /T 3
+SPOTBOTTLE /T 3
 
-RESOURCEMONITOR /T 10 /L C:\logfile.txt /TSV
+SPOTBOTTLE /T 10 /L C:\logfile.txt /TSV
