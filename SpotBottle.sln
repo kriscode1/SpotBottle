@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ResourceMonitor", "ResourceMonitor\ResourceMonitor.vcxproj", "{1F616204-F3EE-4378-B36E-EBA79D60F030}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Spotbottle", "SpotBottle\SpotBottle.vcxproj", "{1F616204-F3EE-4378-B36E-EBA79D60F030}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

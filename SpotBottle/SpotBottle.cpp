@@ -1,6 +1,6 @@
-// ResourceMonitor.cpp : Defines main()
+// SpotBottle.cpp : Defines main()
 // Written by Kristofer Christakos
-// Command line resource monitor. 
+// Command line resource monitor for spotting bottlenecks. 
 // Displays CPU, network, disk, RAM, and process bottleneck information.
 
 #include <windows.h>
@@ -16,10 +16,12 @@
 #include "PdhHelperFunctions.h"
 #include "StringHelpers.h"
 
+
+
 using namespace std;
 
 const wchar_t USAGE_TEXT[] =
-L"RESOURCEMONITOR [/T seconds] [/L logfile] /TSV /H\n\n"
+L"SPOTBOTTLE [/T seconds] [/L logfile] /TSV /H\n\n"
 " /T\tIndicates the time delay between data collection is given, in seconds.\n"
 "    \tDefaults to 1 second. May be a decimal.\n\n"
 " /L\tIndicates an output logfile name is given.\n"
@@ -53,12 +55,12 @@ L"RESOURCEMONITOR [/T seconds] [/L logfile] /TSV /H\n\n"
 "\tsetting will be enabled if not already set. Further calls to this \n"
 "\tprogram will not require administrator rights.\n\n\n"
 "Example Usage:\n\n"
-"RESOURCEMONITOR\n"
-"RESOURCEMONITOR /T 3\n"
-"RESOURCEMONITOR /T 10 /L C:\\logfile.txt /TSV\n"
+"SPOTBOTTLE\n"
+"SPOTBOTTLE /T 3\n"
+"SPOTBOTTLE /T 10 /L C:\\logfile.txt /TSV\n"
 ;
 
-const wchar_t WELCOME_HEADER[] = L"Resource Monitor, Kristofer Christakos, April 2017";
+const wchar_t WELCOME_HEADER[] = L"Spotbottle v2.0, Kristofer Christakos, 2017";
 
 double GetPercentUsedRAM() {
 	//Gets the system physical ram usage percent, returned as a double.
@@ -182,7 +184,7 @@ int wmain(int argc, wchar_t* argv[])
 		registry_is_set = SetRegistryForPIDs();
 	}
 	if (!registry_is_set) {
-		wcout << "Your system is not configured to monitor processes using their PIDs. You will see missing data. Run once with admin rights to enable more accurate process monitoring. See the usage/help for more details." << endl;
+		wcout << "Your system is not configured to monitor processes using their PIDs. You will see missing data. Run once with admin rights to enable more accurate process monitoring. See the usage/help for more details.\n\n";
 	}
 
 	//Open logging file if specified

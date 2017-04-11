@@ -1,3 +1,5 @@
+//Functions for manipulating strings.
+
 #ifndef RESOURCEMONITOR_STRINGHELPERS_H
 #define RESOURCEMONITOR_STRINGHELPERS_H
 
