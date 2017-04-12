@@ -412,9 +412,8 @@ int wmain(int argc, wchar_t* argv[])
 					need_process_wio = true;
 				}
 				else {
-					bottleneck_cause = tio;
-					need_process_rio = true;
-					need_process_wio = true;
+					bottleneck_cause = cpu;
+					need_process_cpu = true;
 				}
 			}
 		}
